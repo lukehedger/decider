@@ -51,7 +51,14 @@ export const paymentDecider: Decider<PaymentCommand, PaymentEvent> = {
 					throw new Error("Payment not authorised");
 				}
 				return [{ type: "PaymentCaptured", id: command.id }];
-			case "RefundPayment":
+			case "RefundPayment": {
+				const createdEvent = events.find(
+					(event): event is Extract<PaymentEvent, { type: "PaymentCreated" }> =>
+						event.id === command.id && event.type === "PaymentCreated",
+				);
+				if (!createdEvent) {
+					throw new Error("Payment not created");
+				}
 				if (
 					!events.some(
 						(event) =>
@@ -60,33 +67,29 @@ export const paymentDecider: Decider<PaymentCommand, PaymentEvent> = {
 				) {
 					throw new Error("Payment not captured");
 				}
-				if (
-					events.reduce((total, event) => {
-						if (event.id === command.id && event.type === "PaymentRefunded") {
-							total += event.amount;
-						}
-						return total;
-					}, 0) < command.amount
-				) {
+				const total = events.reduce((total, event) => {
+					if (event.id === command.id && event.type === "PaymentRefunded") {
+						total += event.amount;
+					}
+					return total;
+				}, 0);
+				if (command.amount > createdEvent.amount - total) {
 					throw new Error("Payment cannot be refunded for more than captured");
 				}
 				return [
 					{ type: "PaymentRefunded", id: command.id, amount: command.amount },
 				];
+			}
 			case "CancelPayment":
+				if (
+					!events.some(
+						(event) =>
+							event.id === command.id && event.type === "PaymentCreated",
+					)
+				) {
+					throw new Error("Payment not created");
+				}
 				return [{ type: "PaymentCancelled", id: command.id }];
 		}
 	},
 };
-
-console.log(
-	paymentDecider.decide(
-		// { type: "CreatePayment", id: Bun.randomUUIDv7(), amount: 100 },
-		// { type: "AuthorisePayment", id: Bun.randomUUIDv7(), amount: 100 },
-		// { type: "CapturePayment", id: Bun.randomUUIDv7(), amount: 100 },
-		// { type: "CancelPayment", id: Bun.randomUUIDv7(), amount: 100 },
-		// { type: "RefundPayment", id: Bun.randomUUIDv7(), amount: 200 },
-		{ type: "RefundPayment", id: "123", amount: 200 },
-		[{ type: "PaymentCaptured", id: "123" }],
-	),
-);
