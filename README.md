@@ -2,6 +2,13 @@
 
 decider pattern in typescript
 
+## Implementations
+
+There are two implementations of the decider pattern:
+
+- `decide.ts` - pure decide, no evolve (or, fold)
+- `evolve.ts` - full decider pattern (decide and evolve)
+
 ## Test
 
 Run all tests:
