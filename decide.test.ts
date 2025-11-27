@@ -55,6 +55,26 @@ describe("paymentDecider", () => {
 				paymentDecider.decide({ type: "AuthorisePayment", id }, events),
 			).toThrow("Payment already authorised");
 		});
+
+		test("should throw when payment not created", () => {
+			const id = Bun.randomUUIDv7();
+
+			expect(() =>
+				paymentDecider.decide({ type: "AuthorisePayment", id }, []),
+			).toThrow("Payment not created");
+		});
+
+		test("should throw when payment cancelled", () => {
+			const id = Bun.randomUUIDv7();
+			const events: PaymentEvent[] = [
+				{ type: "PaymentCreated", id, amount: 100 },
+				{ type: "PaymentCancelled", id },
+			];
+
+			expect(() =>
+				paymentDecider.decide({ type: "AuthorisePayment", id }, events),
+			).toThrow("Payment cancelled");
+		});
 	});
 
 	describe("CapturePayment", () => {
@@ -90,6 +110,32 @@ describe("paymentDecider", () => {
 			expect(() =>
 				paymentDecider.decide({ type: "CapturePayment", id }, []),
 			).toThrow("Payment not authorised");
+		});
+
+		test("should throw when payment cancelled", () => {
+			const id = Bun.randomUUIDv7();
+			const events: PaymentEvent[] = [
+				{ type: "PaymentCreated", id, amount: 100 },
+				{ type: "PaymentAuthorised", id },
+				{ type: "PaymentCancelled", id },
+			];
+
+			expect(() =>
+				paymentDecider.decide({ type: "CapturePayment", id }, events),
+			).toThrow("Payment cancelled");
+		});
+
+		test("should throw when payment already captured", () => {
+			const id = Bun.randomUUIDv7();
+			const events: PaymentEvent[] = [
+				{ type: "PaymentCreated", id, amount: 100 },
+				{ type: "PaymentAuthorised", id },
+				{ type: "PaymentCaptured", id },
+			];
+
+			expect(() =>
+				paymentDecider.decide({ type: "CapturePayment", id }, events),
+			).toThrow("Payment already captured");
 		});
 	});
 
@@ -191,6 +237,23 @@ describe("paymentDecider", () => {
 				),
 			).toThrow("Payment cannot be refunded for more than captured");
 		});
+
+		test("should throw when payment cancelled", () => {
+			const id = Bun.randomUUIDv7();
+			const events: PaymentEvent[] = [
+				{ type: "PaymentCreated", id, amount: 100 },
+				{ type: "PaymentAuthorised", id },
+				{ type: "PaymentCaptured", id },
+				{ type: "PaymentCancelled", id },
+			];
+
+			expect(() =>
+				paymentDecider.decide(
+					{ type: "RefundPayment", id, amount: 50 },
+					events,
+				),
+			).toThrow("Payment cancelled");
+		});
 	});
 
 	describe("CancelPayment", () => {
@@ -214,6 +277,46 @@ describe("paymentDecider", () => {
 			expect(() =>
 				paymentDecider.decide({ type: "CancelPayment", id }, []),
 			).toThrow("Payment not created");
+		});
+
+		test("should throw when payment already cancelled", () => {
+			const id = Bun.randomUUIDv7();
+			const events: PaymentEvent[] = [
+				{ type: "PaymentCreated", id, amount: 100 },
+				{ type: "PaymentCancelled", id },
+			];
+
+			expect(() =>
+				paymentDecider.decide({ type: "CancelPayment", id }, events),
+			).toThrow("Payment already cancelled");
+		});
+
+		test("should throw when payment already captured", () => {
+			const id = Bun.randomUUIDv7();
+			const events: PaymentEvent[] = [
+				{ type: "PaymentCreated", id, amount: 100 },
+				{ type: "PaymentAuthorised", id },
+				{ type: "PaymentCaptured", id },
+			];
+
+			expect(() =>
+				paymentDecider.decide({ type: "CancelPayment", id }, events),
+			).toThrow("Payment already captured");
+		});
+
+		test("should cancel payment when only authorised", () => {
+			const id = Bun.randomUUIDv7();
+			const events: PaymentEvent[] = [
+				{ type: "PaymentCreated", id, amount: 100 },
+				{ type: "PaymentAuthorised", id },
+			];
+
+			const result = paymentDecider.decide(
+				{ type: "CancelPayment", id },
+				events,
+			);
+
+			expect(result).toEqual([{ type: "PaymentCancelled", id }]);
 		});
 	});
 });

@@ -33,6 +33,22 @@ export const paymentDecider: Decider<PaymentCommand, PaymentEvent> = {
 				];
 			case "AuthorisePayment":
 				if (
+					!events.some(
+						(event) =>
+							event.id === command.id && event.type === "PaymentCreated",
+					)
+				) {
+					throw new Error("Payment not created");
+				}
+				if (
+					events.some(
+						(event) =>
+							event.id === command.id && event.type === "PaymentCancelled",
+					)
+				) {
+					throw new Error("Payment cancelled");
+				}
+				if (
 					events.some(
 						(event) =>
 							event.id === command.id && event.type === "PaymentAuthorised",
@@ -50,6 +66,22 @@ export const paymentDecider: Decider<PaymentCommand, PaymentEvent> = {
 				) {
 					throw new Error("Payment not authorised");
 				}
+				if (
+					events.some(
+						(event) =>
+							event.id === command.id && event.type === "PaymentCancelled",
+					)
+				) {
+					throw new Error("Payment cancelled");
+				}
+				if (
+					events.some(
+						(event) =>
+							event.id === command.id && event.type === "PaymentCaptured",
+					)
+				) {
+					throw new Error("Payment already captured");
+				}
 				return [{ type: "PaymentCaptured", id: command.id }];
 			case "RefundPayment": {
 				const createdEvent = events.find(
@@ -66,6 +98,14 @@ export const paymentDecider: Decider<PaymentCommand, PaymentEvent> = {
 					)
 				) {
 					throw new Error("Payment not captured");
+				}
+				if (
+					events.some(
+						(event) =>
+							event.id === command.id && event.type === "PaymentCancelled",
+					)
+				) {
+					throw new Error("Payment cancelled");
 				}
 				const total = events.reduce((total, event) => {
 					if (event.id === command.id && event.type === "PaymentRefunded") {
@@ -88,6 +128,30 @@ export const paymentDecider: Decider<PaymentCommand, PaymentEvent> = {
 					)
 				) {
 					throw new Error("Payment not created");
+				}
+				if (
+					events.some(
+						(event) =>
+							event.id === command.id && event.type === "PaymentCancelled",
+					)
+				) {
+					throw new Error("Payment already cancelled");
+				}
+				if (
+					events.some(
+						(event) =>
+							event.id === command.id && event.type === "PaymentCaptured",
+					)
+				) {
+					throw new Error("Payment already captured");
+				}
+				if (
+					events.some(
+						(event) =>
+							event.id === command.id && event.type === "PaymentRefunded",
+					)
+				) {
+					throw new Error("Payment already refunded");
 				}
 				return [{ type: "PaymentCancelled", id: command.id }];
 		}
