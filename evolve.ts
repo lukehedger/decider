@@ -217,13 +217,14 @@ export const paymentDecider: Decider<
 	decide,
 };
 
+export const hydrate = (events: PaymentEvent[]): PaymentState => {
+	return events.reduce(paymentDecider.evolve, paymentDecider.initialState);
+};
+
 export const processCommand = (
 	command: PaymentCommand,
 	events: PaymentEvent[],
 ): PaymentEvent[] => {
-	const state = events.reduce(
-		(currentState, event) => paymentDecider.evolve(currentState, event),
-		paymentDecider.initialState,
-	);
+	const state = hydrate(events);
 	return paymentDecider.decide(command, state);
 };
